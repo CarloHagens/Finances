@@ -1,0 +1,6 @@
+build/
+.claude/settings.local.json
+.gradle/
+.idea/
+finances-api
+finances-api.exe
