@@ -30,13 +30,18 @@ func (s *Store) GetProfile(ctx context.Context) (*UserProfile, error) {
 	err := s.db.QueryRow(ctx, `
 		SELECT id, date_of_birth::text, retirement_age, pension_access_age,
 		       target_monthly_income, single_target_monthly_income,
-		       COALESCE(partner_date_of_birth::text, ''), partner_state_pension_monthly, partner_pension_end_age
+		       COALESCE(partner_date_of_birth::text, ''), partner_state_pension_monthly, partner_pension_end_age,
+		       partner_state_pension_age, inflation_rate
 		FROM user_profile WHERE id = 1`,
 	).Scan(&p.ID, &p.DateOfBirth, &p.RetirementAge, &p.PensionAccessAge,
 		&p.TargetMonthlyIncome, &p.SingleTargetMonthlyIncome,
-		&p.PartnerDateOfBirth, &p.PartnerStatePensionMonthly, &p.PartnerPensionEndAge)
+		&p.PartnerDateOfBirth, &p.PartnerStatePensionMonthly, &p.PartnerPensionEndAge,
+		&p.PartnerStatePensionAge, &p.InflationRate)
 	if err != nil {
 		return nil, err
+	}
+	if pdob, err := time.Parse("2006-01-02", p.PartnerDateOfBirth); err == nil {
+		p.PartnerStatePensionAgeFromDOB = round2(statePensionAge(pdob))
 	}
 	return p, nil
 }
@@ -49,8 +54,9 @@ func (s *Store) UpsertProfile(ctx context.Context, p UserProfile) (*UserProfile,
 	_, err := s.db.Exec(ctx, `
 		INSERT INTO user_profile (id, date_of_birth, retirement_age, pension_access_age,
 			target_monthly_income, single_target_monthly_income,
-			partner_date_of_birth, partner_state_pension_monthly, partner_pension_end_age)
-		VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8)
+			partner_date_of_birth, partner_state_pension_monthly, partner_pension_end_age,
+			partner_state_pension_age, inflation_rate)
+		VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (id) DO UPDATE SET
 			date_of_birth = EXCLUDED.date_of_birth,
 			retirement_age = EXCLUDED.retirement_age,
@@ -59,10 +65,13 @@ func (s *Store) UpsertProfile(ctx context.Context, p UserProfile) (*UserProfile,
 			single_target_monthly_income = EXCLUDED.single_target_monthly_income,
 			partner_date_of_birth = EXCLUDED.partner_date_of_birth,
 			partner_state_pension_monthly = EXCLUDED.partner_state_pension_monthly,
-			partner_pension_end_age = EXCLUDED.partner_pension_end_age`,
+			partner_pension_end_age = EXCLUDED.partner_pension_end_age,
+			partner_state_pension_age = EXCLUDED.partner_state_pension_age,
+			inflation_rate = EXCLUDED.inflation_rate`,
 		p.DateOfBirth, p.RetirementAge, p.PensionAccessAge,
 		p.TargetMonthlyIncome, p.SingleTargetMonthlyIncome,
 		partnerDOB, p.PartnerStatePensionMonthly, p.PartnerPensionEndAge,
+		p.PartnerStatePensionAge, p.InflationRate,
 	)
 	if err != nil {
 		return nil, err
@@ -99,7 +108,7 @@ func (s *Store) loadPlan(ctx context.Context, now time.Time) (plan planContext, 
 	}
 	if pdob, err := time.Parse("2006-01-02", profile.PartnerDateOfBirth); err == nil {
 		plan.hh.partnerAgeNow = yearsBetween(pdob, now)
-		plan.hh.partnerSPAge = statePensionAge(pdob)
+		plan.hh.partnerSPAge = partnerStatePensionAge(pdob, profile.PartnerStatePensionAge)
 	}
 	return plan, true
 }
@@ -491,11 +500,11 @@ func (s *Store) ProjectMortgage(ctx context.Context) (*MortgageProjection, error
 func (s *Store) GetPensionGoal(ctx context.Context) (*PensionGoal, error) {
 	g := &PensionGoal{}
 	err := s.db.QueryRow(ctx, `
-		SELECT id, account_id, monthly_contribution, annual_growth_rate, inflation_rate,
+		SELECT id, account_id, monthly_contribution, annual_growth_rate,
 		       min_contrib_salary, min_contrib_rate, glidepath_years, glidepath_rate,
 		       own_state_pension_monthly, own_state_pension_age
 		FROM pension_goal WHERE id = 1`,
-	).Scan(&g.ID, &g.AccountID, &g.MonthlyContribution, &g.AnnualGrowthRate, &g.InflationRate,
+	).Scan(&g.ID, &g.AccountID, &g.MonthlyContribution, &g.AnnualGrowthRate,
 		&g.MinContribSalary, &g.MinContribRate, &g.GlidepathYears, &g.GlidepathRate,
 		&g.OwnStatePensionMonthly, &g.OwnStatePensionAge)
 	if err != nil {
@@ -506,22 +515,21 @@ func (s *Store) GetPensionGoal(ctx context.Context) (*PensionGoal, error) {
 
 func (s *Store) UpsertPensionGoal(ctx context.Context, g PensionGoal) (*PensionGoal, error) {
 	_, err := s.db.Exec(ctx, `
-		INSERT INTO pension_goal (id, account_id, monthly_contribution, annual_growth_rate, inflation_rate,
+		INSERT INTO pension_goal (id, account_id, monthly_contribution, annual_growth_rate,
 			min_contrib_salary, min_contrib_rate, glidepath_years, glidepath_rate,
 			own_state_pension_monthly, own_state_pension_age)
-		VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (id) DO UPDATE SET
 			account_id = EXCLUDED.account_id,
 			monthly_contribution = EXCLUDED.monthly_contribution,
 			annual_growth_rate = EXCLUDED.annual_growth_rate,
-			inflation_rate = EXCLUDED.inflation_rate,
 			min_contrib_salary = EXCLUDED.min_contrib_salary,
 			min_contrib_rate = EXCLUDED.min_contrib_rate,
 			glidepath_years = EXCLUDED.glidepath_years,
 			glidepath_rate = EXCLUDED.glidepath_rate,
 			own_state_pension_monthly = EXCLUDED.own_state_pension_monthly,
 			own_state_pension_age = EXCLUDED.own_state_pension_age`,
-		g.AccountID, g.MonthlyContribution, g.AnnualGrowthRate, g.InflationRate,
+		g.AccountID, g.MonthlyContribution, g.AnnualGrowthRate,
 		g.MinContribSalary, g.MinContribRate, g.GlidepathYears, g.GlidepathRate,
 		g.OwnStatePensionMonthly, g.OwnStatePensionAge,
 	)
@@ -550,6 +558,7 @@ func (s *Store) ProjectPension(ctx context.Context) (*PensionProjection, error) 
 	}
 	proj.StopContributionAge = plan.profile.RetirementAge
 	proj.DrawAge = plan.profile.PensionAccessAge
+	proj.InflationRate = plan.profile.InflationRate
 	proj.TargetMonthlyIncome = plan.profile.TargetMonthlyIncome
 	proj.PartnerStatePensionMonthly = plan.profile.PartnerStatePensionMonthly
 
@@ -562,7 +571,7 @@ func (s *Store) ProjectPension(ctx context.Context) (*PensionProjection, error) 
 		growthRate:          goal.AnnualGrowthRate,
 		glidepathRate:       goal.GlidepathRate,
 		glidepathYears:      goal.GlidepathYears,
-		inflation:           goal.InflationRate,
+		inflation:           plan.profile.InflationRate,
 		stopAge:             plan.profile.RetirementAge,
 		drawAge:             plan.profile.PensionAccessAge,
 		ownSPMonthly:        goal.OwnStatePensionMonthly,
@@ -577,9 +586,9 @@ func (s *Store) ProjectPension(ctx context.Context) (*PensionProjection, error) 
 func (s *Store) GetIsaBridgeGoal(ctx context.Context) (*IsaBridgeGoal, error) {
 	g := &IsaBridgeGoal{}
 	err := s.db.QueryRow(ctx, `
-		SELECT id, account_id, monthly_contribution, annual_growth_rate, inflation_rate, glidepath_years, glidepath_rate
+		SELECT id, account_id, monthly_contribution, annual_growth_rate, glidepath_years, glidepath_rate
 		FROM isa_bridge_goal WHERE id = 1`,
-	).Scan(&g.ID, &g.AccountID, &g.MonthlyContribution, &g.AnnualGrowthRate, &g.InflationRate, &g.GlidepathYears, &g.GlidepathRate)
+	).Scan(&g.ID, &g.AccountID, &g.MonthlyContribution, &g.AnnualGrowthRate, &g.GlidepathYears, &g.GlidepathRate)
 	if err != nil {
 		return nil, err
 	}
@@ -588,16 +597,15 @@ func (s *Store) GetIsaBridgeGoal(ctx context.Context) (*IsaBridgeGoal, error) {
 
 func (s *Store) UpsertIsaBridgeGoal(ctx context.Context, g IsaBridgeGoal) (*IsaBridgeGoal, error) {
 	_, err := s.db.Exec(ctx, `
-		INSERT INTO isa_bridge_goal (id, account_id, monthly_contribution, annual_growth_rate, inflation_rate, glidepath_years, glidepath_rate)
-		VALUES (1, $1, $2, $3, $4, $5, $6)
+		INSERT INTO isa_bridge_goal (id, account_id, monthly_contribution, annual_growth_rate, glidepath_years, glidepath_rate)
+		VALUES (1, $1, $2, $3, $4, $5)
 		ON CONFLICT (id) DO UPDATE SET
 			account_id = EXCLUDED.account_id,
 			monthly_contribution = EXCLUDED.monthly_contribution,
 			annual_growth_rate = EXCLUDED.annual_growth_rate,
-			inflation_rate = EXCLUDED.inflation_rate,
 			glidepath_years = EXCLUDED.glidepath_years,
 			glidepath_rate = EXCLUDED.glidepath_rate`,
-		g.AccountID, g.MonthlyContribution, g.AnnualGrowthRate, g.InflationRate, g.GlidepathYears, g.GlidepathRate,
+		g.AccountID, g.MonthlyContribution, g.AnnualGrowthRate, g.GlidepathYears, g.GlidepathRate,
 	)
 	if err != nil {
 		return nil, err
@@ -624,6 +632,7 @@ func (s *Store) ProjectIsaBridge(ctx context.Context) (*IsaBridgeProjection, err
 	}
 	proj.BridgeStartAge = plan.profile.RetirementAge
 	proj.BridgeEndAge = plan.profile.PensionAccessAge
+	proj.InflationRate = plan.profile.InflationRate
 	proj.TargetMonthlyIncome = plan.profile.TargetMonthlyIncome
 	proj.PartnerStatePensionMonthly = plan.profile.PartnerStatePensionMonthly
 
@@ -635,7 +644,7 @@ func (s *Store) ProjectIsaBridge(ctx context.Context) (*IsaBridgeProjection, err
 		growthRate:          goal.AnnualGrowthRate,
 		glidepathRate:       goal.GlidepathRate,
 		glidepathYears:      goal.GlidepathYears,
-		inflation:           goal.InflationRate,
+		inflation:           plan.profile.InflationRate,
 		startAge:            plan.profile.RetirementAge,
 		endAge:              plan.profile.PensionAccessAge,
 		hh:                  plan.hh,

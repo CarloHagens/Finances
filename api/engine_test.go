@@ -84,6 +84,12 @@ func TestStatePensionAge(t *testing.T) {
 	near(t, "May 1960", statePensionAge(d(1960, time.May, 10)), 66+2.0/12, 1e-9)
 }
 
+func TestPartnerStatePensionAgeOverride(t *testing.T) {
+	dob := time.Date(1970, time.June, 15, 0, 0, 0, 0, time.UTC)
+	near(t, "from date of birth", partnerStatePensionAge(dob, 0), 67, 0)
+	near(t, "override", partnerStatePensionAge(dob, 68), 68, 0)
+}
+
 func TestPartnerPensionTiming(t *testing.T) {
 	h := household{partnerPensionMonthly: 1045, partnerAgeNow: 51, partnerSPAge: 67, partnerPensionEndAge: 95}
 	if h.partnerPensionPaid(0) {

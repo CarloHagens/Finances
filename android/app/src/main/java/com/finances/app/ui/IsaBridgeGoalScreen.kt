@@ -34,7 +34,6 @@ fun IsaBridgeEditScreen(vm: FinancesViewModel, onBack: () -> Unit) {
     var accountId by remember(loaded) { mutableStateOf(p?.accountId?.toString() ?: "") }
     var monthlyContrib by remember(loaded) { mutableStateOf(p?.monthlyContribution?.toInputString() ?: "") }
     var growthRate by remember(loaded) { mutableStateOf(p?.annualGrowthRate?.toPercentString() ?: "7") }
-    var inflationRate by remember(loaded) { mutableStateOf(p?.inflationRate?.toPercentString() ?: "3") }
     var glidepathYears by remember(loaded) { mutableStateOf(p?.glidepathYears?.toString() ?: "5") }
     var glidepathRate by remember(loaded) { mutableStateOf(p?.glidepathRate?.toPercentString() ?: "4") }
     var showErrors by remember { mutableStateOf(false) }
@@ -50,7 +49,7 @@ fun IsaBridgeEditScreen(vm: FinancesViewModel, onBack: () -> Unit) {
             GoalNotLoaded { vm.loadIsaBridgeGoal() }
             return@Column
         }
-        HelpText("The bridge runs from your stop-work age to your pension draw age, with the income target and partner's pension from Settings → Profile.")
+        HelpText("The bridge runs from your stop-work age to your pension draw age, with the income target, inflation and partner's pension from Settings → Profile.")
 
         AccountPicker("ISA Account", accounts.filter { it.category == "isa" }, accountId) { accountId = it }
         if (showErrors && accountId.isEmpty()) {
@@ -65,7 +64,6 @@ fun IsaBridgeEditScreen(vm: FinancesViewModel, onBack: () -> Unit) {
             growthRate, { growthRate = it }, "Annual Growth Rate (%)", NumKind.Percent, showErrors, Modifier.fillMaxWidth(),
             supporting = "Before inflation, after fees"
         )
-        NumberField(inflationRate, { inflationRate = it }, "Inflation Rate (%)", NumKind.Percent, showErrors, Modifier.fillMaxWidth())
 
         HorizontalDivider()
         Text("Glidepath", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -82,7 +80,6 @@ fun IsaBridgeEditScreen(vm: FinancesViewModel, onBack: () -> Unit) {
                         accountId = accountId.toIntOrNull()!!,
                         monthlyContribution = parseNumber(monthlyContrib, NumKind.Money)!!,
                         annualGrowthRate = parseNumber(growthRate, NumKind.Percent)!!,
-                        inflationRate = parseNumber(inflationRate, NumKind.Percent)!!,
                         glidepathYears = parseNumber(glidepathYears, NumKind.Whole)!!.toInt(),
                         glidepathRate = parseNumber(glidepathRate, NumKind.Percent)!!
                     )

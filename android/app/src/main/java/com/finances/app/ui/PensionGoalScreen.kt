@@ -90,7 +90,6 @@ fun PensionEditScreen(vm: FinancesViewModel, onBack: () -> Unit) {
     var accountId by remember(loaded) { mutableStateOf(p?.accountId?.toString() ?: "") }
     var monthlyContrib by remember(loaded) { mutableStateOf(p?.monthlyContribution?.toInputString() ?: "") }
     var growthRate by remember(loaded) { mutableStateOf(p?.annualGrowthRate?.toPercentString() ?: "7") }
-    var inflationRate by remember(loaded) { mutableStateOf(p?.inflationRate?.toPercentString() ?: "3") }
     var ownPension by remember(loaded) { mutableStateOf(p?.ownStatePensionMonthly?.toInputString() ?: "0") }
     var ownPensionAge by remember(loaded) { mutableStateOf(p?.ownStatePensionAge?.toString() ?: "68") }
     var minSalary by remember(loaded) { mutableStateOf(p?.minContribSalary?.toInputString() ?: "0") }
@@ -108,7 +107,7 @@ fun PensionEditScreen(vm: FinancesViewModel, onBack: () -> Unit) {
             GoalNotLoaded { vm.loadPensionGoal() }
             return@Column
         }
-        HelpText("Your stop-work and draw ages, income target and partner's pension are set in Settings → Profile.")
+        HelpText("Your stop-work and draw ages, income target, inflation and partner's pension are set in Settings → Profile.")
 
         AccountPicker("Pension Account", accounts.filter { it.category == "pension" }, accountId) { accountId = it }
         if (showErrors && accountId.isEmpty()) {
@@ -119,7 +118,6 @@ fun PensionEditScreen(vm: FinancesViewModel, onBack: () -> Unit) {
             growthRate, { growthRate = it }, "Annual Growth Rate (%)", NumKind.Percent, showErrors, Modifier.fillMaxWidth(),
             supporting = "Before inflation, after fees"
         )
-        NumberField(inflationRate, { inflationRate = it }, "Inflation (%)", NumKind.Percent, showErrors, Modifier.fillMaxWidth())
 
         HelpText("Your own state pension (today's £) — reduces pension drawdown from the age below. Enter whatever you're comfortable counting on.")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -148,7 +146,6 @@ fun PensionEditScreen(vm: FinancesViewModel, onBack: () -> Unit) {
                         accountId = accountId.toIntOrNull()!!,
                         monthlyContribution = parseNumber(monthlyContrib, NumKind.Money)!!,
                         annualGrowthRate = parseNumber(growthRate, NumKind.Percent)!!,
-                        inflationRate = parseNumber(inflationRate, NumKind.Percent)!!,
                         ownStatePensionMonthly = parseNumber(ownPension, NumKind.Money)!!,
                         ownStatePensionAge = parseNumber(ownPensionAge, NumKind.Whole)!!.toInt(),
                         minContribSalary = parseNumber(minSalary, NumKind.Money)!!,

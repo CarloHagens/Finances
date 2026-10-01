@@ -106,6 +106,7 @@ func runMigrations(ctx context.Context, db *pgxpool.Pool) error {
 		"009_mortgage_ltv.sql",
 		"010_pension_own_state_pension.sql",
 		"011_audit_fixes.sql",
+		"012_profile_partner_spa_inflation.sql",
 	}
 
 	for _, name := range migrations {

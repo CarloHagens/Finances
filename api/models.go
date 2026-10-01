@@ -14,6 +14,11 @@ type UserProfile struct {
 	PartnerDateOfBirth         string  `json:"partner_date_of_birth" db:"partner_date_of_birth"`               // "" = unknown
 	PartnerStatePensionMonthly float64 `json:"partner_state_pension_monthly" db:"partner_state_pension_monthly"`
 	PartnerPensionEndAge       int     `json:"partner_pension_end_age" db:"partner_pension_end_age"` // partner's age; 0 = paid for the whole plan
+	PartnerStatePensionAge     int     `json:"partner_state_pension_age" db:"partner_state_pension_age"` // override; 0 = from their date of birth
+	InflationRate              float64 `json:"inflation_rate" db:"inflation_rate"`
+	// Read-only: the State Pension age current law gives the partner's date of
+	// birth (0 when unknown), so the app can show what a blank override means.
+	PartnerStatePensionAgeFromDOB float64 `json:"partner_state_pension_age_from_dob"`
 }
 
 type Account struct {
@@ -111,7 +116,6 @@ type PensionGoal struct {
 	AccountID              *int    `json:"account_id" db:"account_id"`
 	MonthlyContribution    float64 `json:"monthly_contribution" db:"monthly_contribution"`
 	AnnualGrowthRate       float64 `json:"annual_growth_rate" db:"annual_growth_rate"`
-	InflationRate          float64 `json:"inflation_rate" db:"inflation_rate"`
 	MinContribSalary       float64 `json:"min_contrib_salary" db:"min_contrib_salary"`
 	MinContribRate         float64 `json:"min_contrib_rate" db:"min_contrib_rate"`
 	GlidepathYears         int     `json:"glidepath_years" db:"glidepath_years"`
@@ -134,6 +138,7 @@ type PensionProjection struct {
 	// Plan inputs taken from the profile, echoed for display.
 	StopContributionAge        int     `json:"stop_contribution_age"`
 	DrawAge                    int     `json:"draw_age"`
+	InflationRate              float64 `json:"inflation_rate"`
 	TargetMonthlyIncome        float64 `json:"target_monthly_income"`
 	PartnerStatePensionMonthly float64 `json:"partner_state_pension_monthly"`
 
@@ -177,7 +182,6 @@ type IsaBridgeGoal struct {
 	AccountID           *int    `json:"account_id" db:"account_id"`
 	MonthlyContribution float64 `json:"monthly_contribution" db:"monthly_contribution"`
 	AnnualGrowthRate    float64 `json:"annual_growth_rate" db:"annual_growth_rate"`
-	InflationRate       float64 `json:"inflation_rate" db:"inflation_rate"`
 	GlidepathYears      int     `json:"glidepath_years" db:"glidepath_years"`
 	GlidepathRate       float64 `json:"glidepath_rate" db:"glidepath_rate"`
 }
@@ -192,6 +196,7 @@ type IsaBridgeProjection struct {
 	// Plan inputs taken from the profile, echoed for display.
 	BridgeStartAge             int     `json:"bridge_start_age"`
 	BridgeEndAge               int     `json:"bridge_end_age"`
+	InflationRate              float64 `json:"inflation_rate"`
 	TargetMonthlyIncome        float64 `json:"target_monthly_income"`
 	PartnerStatePensionMonthly float64 `json:"partner_state_pension_monthly"`
 

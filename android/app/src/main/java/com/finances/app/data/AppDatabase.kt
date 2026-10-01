@@ -43,7 +43,7 @@ interface AccountDao {
 
 // The database is only an offline cache of server data, so schema changes
 // simply rebuild it.
-@Database(entities = [UserProfile::class, Account::class], version = 2, exportSchema = false)
+@Database(entities = [UserProfile::class, Account::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao
     abstract fun accountDao(): AccountDao

@@ -41,6 +41,7 @@ func validateProfile(p UserProfile) string {
 	return firstProblem(
 		validDate("date_of_birth", p.DateOfBirth),
 		validDate("partner_date_of_birth", p.PartnerDateOfBirth),
+		validRate("inflation", p.InflationRate),
 		func() string {
 			switch {
 			case p.RetirementAge <= 0 || p.PensionAccessAge <= 0:
@@ -53,6 +54,10 @@ func validateProfile(p UserProfile) string {
 				return "income and pension amounts must not be negative"
 			case p.PartnerPensionEndAge < 0:
 				return "partner pension end age must not be negative"
+			case p.PartnerStatePensionAge != 0 && (p.PartnerStatePensionAge < 55 || p.PartnerStatePensionAge > 80):
+				return "partner's State Pension age must be between 55 and 80, or blank to use their date of birth"
+			case p.PartnerStatePensionAge != 0 && p.PartnerDateOfBirth == "":
+				return "set your partner's date of birth to use a State Pension age for them"
 			}
 			return ""
 		}(),
@@ -63,7 +68,6 @@ func validatePensionGoal(g PensionGoal) string {
 	return firstProblem(
 		validRate("growth rate", g.AnnualGrowthRate),
 		validRate("glidepath rate", g.GlidepathRate),
-		validRate("inflation", g.InflationRate),
 		validRate("minimum contribution rate", g.MinContribRate),
 		func() string {
 			switch {
@@ -83,7 +87,6 @@ func validateIsaBridgeGoal(g IsaBridgeGoal) string {
 	return firstProblem(
 		validRate("growth rate", g.AnnualGrowthRate),
 		validRate("glidepath rate", g.GlidepathRate),
-		validRate("inflation", g.InflationRate),
 		func() string {
 			switch {
 			case g.MonthlyContribution < 0:

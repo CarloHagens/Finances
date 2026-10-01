@@ -102,8 +102,12 @@ private fun ProfileSection(vm: FinancesViewModel) {
     var retirementAge by remember(profile) { mutableStateOf(profile?.retirementAge?.toString() ?: "53") }
     var pensionAge by remember(profile) { mutableStateOf(profile?.pensionAccessAge?.toString() ?: "58") }
     var targetIncome by remember(profile) { mutableStateOf(profile?.targetMonthlyIncome?.toInputString() ?: "") }
+    var inflation by remember(profile) { mutableStateOf(profile?.inflationRate?.toPercentString() ?: "3") }
     var partnerDob by remember(profile) { mutableStateOf(profile?.partnerDateOfBirth ?: "") }
     var partnerPension by remember(profile) { mutableStateOf(profile?.partnerStatePensionMonthly?.toInputString() ?: "0") }
+    var partnerSpa by remember(profile) {
+        mutableStateOf(profile?.partnerStatePensionAge?.takeIf { it > 0 }?.toString() ?: "")
+    }
     var partnerEndAge by remember(profile) {
         mutableStateOf(profile?.partnerPensionEndAge?.takeIf { it > 0 }?.toString() ?: "")
     }
@@ -161,6 +165,11 @@ private fun ProfileSection(vm: FinancesViewModel) {
         targetIncome, { targetIncome = it; saved = false }, "Household income target (£/mo)", NumKind.Money, showErrors,
         Modifier.fillMaxWidth(), placeholder = "e.g. 3,000", supporting = "After tax, today's money"
     )
+    Spacer(Modifier.height(8.dp))
+    NumberField(
+        inflation, { inflation = it; saved = false }, "Inflation (% a year)", NumKind.Percent, showErrors,
+        Modifier.fillMaxWidth(), supporting = "Used by both the pension and ISA bridge goals"
+    )
 
     Spacer(Modifier.height(16.dp))
     Text("Partner", style = MaterialTheme.typography.titleSmall)
@@ -174,6 +183,18 @@ private fun ProfileSection(vm: FinancesViewModel) {
     NumberField(
         partnerPension, { partnerPension = it; saved = false }, "Partner's state pension (£/mo)", NumKind.Money, showErrors,
         Modifier.fillMaxWidth(), supporting = "Full new State Pension is about £1,046/mo (2026/27)"
+    )
+    Spacer(Modifier.height(8.dp))
+    val legislatedSpa = profile?.partnerStatePensionAgeFromDob?.takeIf { it > 0 && partnerDob == profile?.partnerDateOfBirth }
+    NumberField(
+        partnerSpa, { partnerSpa = it; saved = false }, "Their State Pension age", NumKind.Whole, showErrors,
+        Modifier.fillMaxWidth(), optional = true,
+        placeholder = legislatedSpa?.let { fmtAge(it) },
+        supporting = when {
+            partnerDob.isEmpty() -> "Needs their date of birth"
+            legislatedSpa != null -> "Blank = ${fmtAge(legislatedSpa)}, from their date of birth under current law"
+            else -> "Blank = worked out from their date of birth under current law"
+        }
     )
     Spacer(Modifier.height(8.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -194,7 +215,10 @@ private fun ProfileSection(vm: FinancesViewModel) {
             val partner = parseNumber(partnerPension, NumKind.Money)
             val valid = dob.isNotEmpty() && stopAge != null && drawAge != null && ageProblem == null &&
                 fieldValid(targetIncome, NumKind.Money) && fieldValid(partnerPension, NumKind.Money) &&
+                fieldValid(inflation, NumKind.Percent, allowNegative = true) &&
                 fieldValid(partnerEndAge, NumKind.Whole, optional = true) &&
+                fieldValid(partnerSpa, NumKind.Whole, optional = true) &&
+                (partnerSpa.isBlank() || partnerDob.isNotEmpty()) &&
                 fieldValid(singleIncome, NumKind.Money, optional = true)
             if (!valid || target == null || partner == null) {
                 showErrors = true
@@ -208,7 +232,9 @@ private fun ProfileSection(vm: FinancesViewModel) {
                 singleTargetMonthlyIncome = parseNumber(singleIncome, NumKind.Money) ?: 0.0,
                 partnerDateOfBirth = partnerDob,
                 partnerStatePensionMonthly = partner,
-                partnerPensionEndAge = parseNumber(partnerEndAge, NumKind.Whole)?.toInt() ?: 0
+                partnerPensionEndAge = parseNumber(partnerEndAge, NumKind.Whole)?.toInt() ?: 0,
+                partnerStatePensionAge = parseNumber(partnerSpa, NumKind.Whole)?.toInt() ?: 0,
+                inflationRate = parseNumber(inflation, NumKind.Percent)!!
             ))
             saved = true
         },
@@ -347,4 +373,11 @@ private fun ServerSection(currentUrl: String, onUrlChange: (String) -> Unit) {
         if (saved) Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp).padding(end = 4.dp))
         Text(if (saved) "Saved" else "Save")
     }
+}
+
+/** An age that may include months: 67.0 → "67", 66.1667 → "66 yrs 2 mo". */
+private fun fmtAge(age: Double): String {
+    val years = age.toInt()
+    val months = Math.round((age - years) * 12).toInt()
+    return if (months == 0) "$years" else "$years yrs $months mo"
 }

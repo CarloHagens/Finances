@@ -17,7 +17,10 @@ data class UserProfile(
     val singleTargetMonthlyIncome: Double = 0.0, // after the partner's pension stops; 0 = unchanged
     val partnerDateOfBirth: String = "",      // "" = unknown
     val partnerStatePensionMonthly: Double = 0.0,
-    val partnerPensionEndAge: Int = 0         // partner's age; 0 = paid for the whole plan
+    val partnerPensionEndAge: Int = 0,        // partner's age; 0 = paid for the whole plan
+    val partnerStatePensionAge: Int = 0,      // override; 0 = from their date of birth
+    val partnerStatePensionAgeFromDob: Double = 0.0, // read-only: legislated age for their date of birth
+    val inflationRate: Double = 0.03
 )
 
 @Entity(tableName = "accounts")
@@ -120,7 +123,6 @@ data class PensionGoal(
     val accountId: Int? = null,
     val monthlyContribution: Double = 0.0,
     val annualGrowthRate: Double = 0.07,
-    val inflationRate: Double = 0.03,
     val minContribSalary: Double = 0.0,
     val minContribRate: Double = 0.08,
     val glidepathYears: Int = 5,
@@ -194,7 +196,6 @@ data class IsaBridgeGoal(
     val accountId: Int? = null,
     val monthlyContribution: Double = 0.0,
     val annualGrowthRate: Double = 0.07,
-    val inflationRate: Double = 0.03,
     val glidepathYears: Int = 5,
     val glidepathRate: Double = 0.04
 )

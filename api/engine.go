@@ -129,6 +129,15 @@ func statePensionAge(dob time.Time) float64 {
 	}
 }
 
+// partnerStatePensionAge is the age the partner's state pension starts: the
+// override when set, otherwise the legislated age for their date of birth.
+func partnerStatePensionAge(dob time.Time, override int) float64 {
+	if override > 0 {
+		return float64(override)
+	}
+	return statePensionAge(dob)
+}
+
 // timeline converts month offsets from today into inflation and tax-band factors.
 type timeline struct {
 	now        time.Time
