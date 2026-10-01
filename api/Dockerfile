@@ -9,5 +9,6 @@ RUN CGO_ENABLED=0 go build -o /finances-api .
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=builder /finances-api /finances-api
+COPY --from=builder /app/migrations /migrations
 EXPOSE 8080
 CMD ["/finances-api"]

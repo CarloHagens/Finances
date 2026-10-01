@@ -4,3 +4,4 @@ build/
 .idea/
 finances-api
 finances-api.exe
+local.properties

@@ -1,11 +1,11 @@
 services:
   api:
-    build: ./api
+    image: jagger911/finances-api:latest
     ports:
-      - "8080:8080"
+      - "9002:9002"
     environment:
       DATABASE_URL: postgres://finances:finances@db:5432/finances?sslmode=disable
-      PORT: "8080"
+      PORT: "9002"
     depends_on:
       db:
         condition: service_healthy
@@ -18,9 +18,7 @@ services:
       POSTGRES_PASSWORD: finances
       POSTGRES_DB: finances
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - finances-pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U finances"]
       interval: 5s
@@ -29,4 +27,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  pgdata:
+  finances-pgdata:

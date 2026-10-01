@@ -1,0 +1,7 @@
+ALTER TABLE pension_goal
+  ADD COLUMN IF NOT EXISTS glidepath_years INT          NOT NULL DEFAULT 5,
+  ADD COLUMN IF NOT EXISTS glidepath_rate  NUMERIC(6,4) NOT NULL DEFAULT 0.04;
+
+ALTER TABLE isa_bridge_goal
+  ADD COLUMN IF NOT EXISTS glidepath_years INT          NOT NULL DEFAULT 5,
+  ADD COLUMN IF NOT EXISTS glidepath_rate  NUMERIC(6,4) NOT NULL DEFAULT 0.04;
